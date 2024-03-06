@@ -24,7 +24,7 @@ ebcdic==1.1.1
 emoji==2.10.1
 exceptiongroup==1.2.0
 extract-msg==0.45.0
-fastapi==0.99.1
+fastapi==0.109.1
 filelock==3.13.1
 filetype==1.2.0
 flatbuffers==23.5.26
