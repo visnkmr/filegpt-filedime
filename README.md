@@ -2,7 +2,7 @@
 
 #### Step 1: Step a Virtual Environment
 
-#### Step 2: Install the Requirements
+#### Step 2: Install the Requirements and add a dot in front of env file '.env'
 ```
 pip install -r requirements.txt
 ```
