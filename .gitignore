@@ -1,0 +1,9 @@
+poetry.lock
+1.txt
+source_documents/
+__pycache__/
+db/
+otest/
+pyproject.toml
+privateGPT.py
+constants.py
