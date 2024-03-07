@@ -9,9 +9,16 @@ from typing import List
 from langchain.llms import Ollama
 import shutil
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Allow all origins, adjust as needed
+    allow_credentials=True,
+    allow_methods=["*"], # Allow all methods
+    allow_headers=["*"], # Allow all headers
+)
 class QueryData(BaseModel):
     query: str
 
