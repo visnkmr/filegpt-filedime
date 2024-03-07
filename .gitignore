@@ -6,4 +6,4 @@ db/
 otest/
 pyproject.toml
 privateGPT.py
-constants.py
+# constants.py

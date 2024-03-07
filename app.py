@@ -10,11 +10,13 @@ from langchain.llms import Ollama
 import shutil
 from pydantic import BaseModel
 
-
 app = FastAPI()
 
 class QueryData(BaseModel):
     query: str
+
+class QueryEmbedData(BaseModel):
+    files: List[str]
     # collection_name: str
 
 load_dotenv()
@@ -32,26 +34,48 @@ from constants import CHROMA_SETTINGS
 async def root():
     return {"message": "Hello, the APIs are now ready for your embeds and queries!"}
 
+@app.get("/clear")
+async def clear():
+     if os.path.exists(persist_directory):
+        print(f"Clearing existing vectorstore at {persist_directory}")
+        shutil.rmtree(persist_directory)
+     return {"message": "cleaning existing embeddings"}
+
+def save_paths_to_file(json_data):
+    with open('source_documents/paths.txt', 'w') as file:
+        # Iterate through the list of file paths
+        for path in json_data:
+            # Write each path to the file
+            file.write(path + '\n')
+
+# @app.post("/test")
+# async def test(files: QueryEmbedData):
+#     print(files.files)
+#     with open('source_documents/paths.txt', 'w') as file:
+#         # Iterate through the list of file paths
+#         for path in files.files:
+#             # Write each path to the file
+#             file.write(path + '\n')
+    
+    
 @app.post("/embed")
-async def embed(files: List[UploadFile]):
+async def embed(files: QueryEmbedData):
     # Delete the embeddings folder
     if os.path.exists(persist_directory):
         print(f"Clearing existing vectorstore at {persist_directory}")
         shutil.rmtree(persist_directory)
+        # return {"message": "cleaning existing embeddings"}
 
-    saved_files = []
-    # Save the files to the specified folder
-    for file in files:
-        file_path = os.path.join(source_directory, file.filename)
-        saved_files.append(file_path)
-        
-        with open(file_path, "wb") as f:
-            f.write(await file.read())
+    # Prepare a list to store the file paths
+    saved_files = files.files
+
+    # Write the paths of the uploaded files to paths.txt
+    save_paths_to_file(files.files)
     
-    os.system(f'python ingest.py ')
+    os.system(f'python3 ingest.py ')
     
     # Delete the contents of the folder
-    [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
+    # [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
     
     return {"message": "Files embedded successfully", "saved_files": saved_files}
 
@@ -75,3 +99,8 @@ async def query(data: QueryData):
 
     return {"results": answer, "docs":docs}
 
+
+# embed(["/home/ubroger/Documents/GitHub/filegpt-filedime/1.txt",
+# "/home/ubroger/Documents/GitHub/filegpt-filedime/requirements.txt"])
+
+# curl -X POST http://localhost:8080/embed -H "Content-Type: application/json" -d '{"files": ["/home/ubroger/Documents/GitHub/filegpt-filedime/1.txt","/home/ubroger/Documents/GitHub/filegpt-filedime/requirements.txt"]}'

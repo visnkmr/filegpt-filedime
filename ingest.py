@@ -85,16 +85,12 @@ def load_single_document(file_path: str) -> List[Document]:
 
     raise ValueError(f"Unsupported file extension '{ext}'")
 
-def load_documents(source_dir: str, ignored_files: List[str] = []) -> List[Document]:
+def load_documents(file_paths: List[str], ignored_files: List[str] = []) -> List[Document]:
     """
-    Loads all documents from the source documents directory, ignoring specified files
+    Loads all documents from the specified file paths, ignoring specified files
     """
-    all_files = []
-    for ext in LOADER_MAPPING:
-        all_files.extend(
-            glob.glob(os.path.join(source_dir, f"**/*{ext}"), recursive=True)
-        )
-    filtered_files = [file_path for file_path in all_files if file_path not in ignored_files]
+    # Filter out ignored files
+    filtered_files = [file_path for file_path in file_paths if file_path not in ignored_files]
 
     with Pool(processes=os.cpu_count()) as pool:
         results = []
@@ -105,12 +101,20 @@ def load_documents(source_dir: str, ignored_files: List[str] = []) -> List[Docum
 
     return results
 
+# Function to read file paths from paths.txt
+def read_file_paths_from_txt(file_path: str) -> List[str]:
+    with open(file_path, 'r') as file:
+        file_paths = [line.strip() for line in file.readlines()]
+    return file_paths
+
 def process_documents(ignored_files: List[str] = []) -> List[Document]:
     """
     Load documents and split in chunks
     """
     print(f"Loading documents from {source_directory}")
-    documents = load_documents(source_directory, ignored_files)
+    file_paths = read_file_paths_from_txt('source_documents/paths.txt')
+    # documents = load_documents(file_paths)
+    documents = load_documents(file_paths, ignored_files)
     if not documents:
         print("No new documents to load")
         exit(0)
