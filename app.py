@@ -10,6 +10,79 @@ from langchain.llms import Ollama
 import shutil
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from langchain.callbacks.base import BaseCallbackHandler
+
+
+import sys
+from typing import Any, Dict, List, Union
+
+from langchain.callbacks.base import BaseCallbackHandler
+from langchain.schema import AgentAction, AgentFinish, LLMResult
+from langchain.schema.messages import BaseMessage
+
+class StreamHandler(BaseCallbackHandler):
+    def on_llm_start(
+        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
+    ) -> None:
+        """Run when LLM starts running."""
+
+    def on_chat_model_start(
+        self,
+        serialized: Dict[str, Any],
+        messages: List[List[BaseMessage]],
+        **kwargs: Any
+    ) -> None:
+        """Run when LLM starts running."""
+
+    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        """Run on new LLM token. Only available when streaming is enabled."""
+        print(token)
+
+    def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
+        """Run when LLM ends running."""
+
+    def on_llm_error(
+        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
+    ) -> None:
+        """Run when LLM errors."""
+
+    def on_chain_start(
+        self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
+    ) -> None:
+        """Run when chain starts running."""
+
+    def on_chain_end(self, outputs: Dict[str, Any], **kwargs: Any) -> None:
+        """Run when chain ends running."""
+
+    def on_chain_error(
+        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
+    ) -> None:
+        """Run when chain errors."""
+
+    def on_tool_start(
+        self, serialized: Dict[str, Any], input_str: str, **kwargs: Any
+    ) -> None:
+        """Run when tool starts running."""
+
+    def on_agent_action(self, action: AgentAction, **kwargs: Any) -> Any:
+        """Run on agent action."""
+        pass
+
+    def on_tool_end(self, output: str, **kwargs: Any) -> None:
+        """Run when tool ends running."""
+
+    def on_tool_error(
+        self, error: Union[Exception, KeyboardInterrupt], **kwargs: Any
+    ) -> None:
+        """Run when tool errors."""
+
+    def on_text(self, text: str, **kwargs: Any) -> None:
+        """Run on arbitrary text."""
+
+    def on_agent_finish(self, finish: AgentFinish, **kwargs: Any) -> None:
+        """Run on agent end."""
+ 
+    
 
 app = FastAPI()
 app.add_middleware(
@@ -31,7 +104,7 @@ load_dotenv()
 embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME")
 persist_directory = os.environ.get('PERSIST_DIRECTORY')
 model = os.environ.get("MODEL", "llama2")
-target_source_chunks = int(os.environ.get('TARGET_SOURCE_CHUNKS',4))
+target_source_chunks = int(os.environ.get('TARGET_SOURCE_CHUNKS',1))
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
 
 from constants import CHROMA_SETTINGS
@@ -63,8 +136,7 @@ def save_paths_to_file(json_data):
 #         for path in files.files:
 #             # Write each path to the file
 #             file.write(path + '\n')
-    
-    
+
 @app.post("/embed")
 async def embed(files: QueryEmbedData):
     # Delete the embeddings folder
@@ -89,21 +161,23 @@ async def embed(files: QueryEmbedData):
 @app.post("/retrieve")
 async def query(data: QueryData):
     question=data.query
+    # return {"results": question, "docs":data}
     embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
 
     db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
-    callbacks = [StreamingStdOutCallbackHandler()]
+    # message_placeholder = st.empty()
+    stream_handler = StreamHandler()  
+    callbacks = [stream_handler]
 
     llm = Ollama(model=model, callbacks=callbacks)
 
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     res = qa(question)
-    print(res)   
+    # print(res)   
     answer, docs = res['result'], res['source_documents']
-
-
+    print(answer)
     return {"results": answer, "docs":docs}
 
 
