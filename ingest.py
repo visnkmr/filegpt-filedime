@@ -141,7 +141,7 @@ def main():
     
 
     # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"})
 
     if does_vectorstore_exist(persist_directory):
         # Update and store locally vectorstore
@@ -160,7 +160,7 @@ def main():
     db.persist()
     db = None
 
-    print(f"Ingestion complete! You can now run privateGPT.py to query your documents")
+    print(f"Ingestion complete! You can now run privateGPT.py/use the /retrieve route to query your documents")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.vectorstores import Chroma
 import os
 from fastapi import FastAPI, UploadFile, File
-from typing import List
+from typing import List,Optional
 from langchain.llms import Ollama
 import shutil
 from pydantic import BaseModel
@@ -82,7 +82,6 @@ class StreamHandler(BaseCallbackHandler):
     def on_agent_finish(self, finish: AgentFinish, **kwargs: Any) -> None:
         """Run on agent end."""
  
-    
 
 app = FastAPI()
 app.add_middleware(
@@ -136,9 +135,39 @@ def save_paths_to_file(json_data):
 #         for path in files.files:
 #             # Write each path to the file
 #             file.write(path + '\n')
+@app.post("/embedfromremote")
+async def embed(files: List[UploadFile], collection_name: Optional[str] = None):
+    if os.path.exists(persist_directory):
+        print(f"Clearing existing vectorstore at {persist_directory}")
+        shutil.rmtree(persist_directory)
+
+
+    saved_files = []
+    # Save the files to the specified folder
+    for file in files:
+        file_path = os.path.join(source_directory, file.filename)
+        saved_files.append(file_path) 
+        
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        
+        if collection_name is None:
+            # Handle the case when the collection_name is not defined
+            collection_name = file.filename
+
+    save_paths_to_file(saved_files)
+    
+    os.system(f'python3 ingest.py {collection_name}')
+    
+    # Delete the contents of the folder
+    [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
+    
+    return {"message": "Files embedded successfully", "saved_files": saved_files}
 
 @app.post("/embed")
 async def embed(files: QueryEmbedData):
+    saved_files = files.files
+    # return {"message": "Files embedded successfully", "saved_files": [saved_files]}
     # Delete the embeddings folder
     if os.path.exists(persist_directory):
         print(f"Clearing existing vectorstore at {persist_directory}")
@@ -162,7 +191,7 @@ async def embed(files: QueryEmbedData):
 async def query(data: QueryData):
     question=data.query
     # return {"results": question, "docs":data}
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"})
 
     db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 

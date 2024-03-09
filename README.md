@@ -14,7 +14,7 @@ ollama pull llama2
 ```
 #### Step 4: Run this command (use python3 if on mac)
 ```
-gunicorn app:app -k uvicorn.workers.UvicornWorker --timeout 1500 -b 0.0.0.0:8080
+gunicorn app:app -k uvicorn.workers.UvicornWorker --timeout 1500 -b 0.0.0.0:8694    
 
 ```
 
