@@ -49,6 +49,7 @@ persist_directory = os.environ.get('PERSIST_DIRECTORY')
 model = os.environ.get("MODEL", "llama2")
 target_source_chunks = int(os.environ.get('TARGET_SOURCE_CHUNKS',1))
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
+base_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
 
 quit_stream = False
 from constants import CHROMA_SETTINGS
@@ -71,7 +72,7 @@ from fastapi.responses import JSONResponse
 @app.get("/", response_class=JSONResponse)
 async def root():
     print("hello")
-    return {"message": "Hello, the APIs are now ready for your embeds and queries!"}
+    return {"message": "Hello, the FiledimeGPT APIs are now ready for your embeds and queries!"}
 
 @app.get("/clear")
 async def clear():
@@ -89,7 +90,14 @@ def save_paths_to_file(json_data):
 
 
 @app.post("/embedfromremote")
-async def embed(files: List[UploadFile], collection_name: Optional[str] = None):
+async def embedfromremote(files: List[UploadFile], collection_name: Optional[str] = None):
+    file_paths=read_file_paths_from_txt("source_documents/paths.txt")
+    already_files = [file_path for file_path in file_paths]
+    saved_files = [os.path.join(source_directory, file.filename) for file in files]
+    all_in_b = all(x in already_files for x in saved_files)
+    if(all_in_b):
+        return {"message": "Files already analyzed(embedded)", "saved_files": saved_files}
+
     if os.path.exists(persist_directory):
         print(f"Clearing existing vectorstore at {persist_directory}")
         shutil.rmtree(persist_directory)
@@ -131,7 +139,7 @@ async def embed(files: QueryEmbedData):
     saved_files = files.files
     all_in_b = all(x in already_files for x in saved_files)
     if(all_in_b):
-        return {"message": "Files embedded successfully", "saved_files": saved_files}
+        return {"message": "Files already analyzed(embedded)", "saved_files": saved_files}
 
     # return {"message": "Files embedded successfully", "saved_files": [saved_files]}
     # Delete the embeddings folder
@@ -171,7 +179,7 @@ async def retrieve(query: QueryData):
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
 
-    llm = Ollama(model=model)
+    llm = Ollama(model=model,base_url=base_url)
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     res = qa(query.query) 
     print(perf_counter()-start_time)
