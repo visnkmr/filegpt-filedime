@@ -137,31 +137,39 @@ def does_vectorstore_exist(persist_directory: str) -> bool:
                 return True
     return False
 
-def main():
+def main(collection):
     
 
     # Create embeddings
     embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"})
 
-    if does_vectorstore_exist(persist_directory):
-        # Update and store locally vectorstore
-        print(f"Appending to existing vectorstore at {persist_directory}")
-        db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS)
-        collection = db.get()
-        texts = process_documents([metadata['source'] for metadata in collection['metadatas']])
-        print(f"Creating embeddings. May take some minutes...")
-        db.add_documents(texts)
-    else:
+    # if does_vectorstore_exist(persist_directory):
+    #     # Update and store locally vectorstore
+    #     print(f"Appending to existing vectorstore at {persist_directory}")
+    #     db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name=collection, client_settings=CHROMA_SETTINGS)
+    #     collection = db.get()
+    #     print(collection)
+    #     texts = process_documents([metadata['source'] for metadata in collection['metadatas']])
+    #     print(f"Creating embeddings. May take some minutes...")
+    #     db.add_documents(texts)
+    # else:
         # Create and store locally vectorstore
-        print("Creating new vectorstore")
-        texts = process_documents()
-        print(f"Creating embeddings. May take some minutes...")
-        db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
+    print("Creating new vectorstore")
+    texts = process_documents()
+    print(f"Creating embeddings. May take some minutes...")
+    db = Chroma.from_documents(texts, embeddings, collection_name=collection, persist_directory=persist_directory)
     db.persist()
     db = None
 
     print(f"Ingestion complete! You can now run privateGPT.py/use the /retrieve route to query your documents")
 
-
+import argparse
 if __name__ == "__main__":
-    main()
+ # Create the argument parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--collection", help="Saves the embedding in a collection name as specified")
+
+    # Parse the command-line arguments
+    args = parser.parse_args()
+
+    main(args.collection)

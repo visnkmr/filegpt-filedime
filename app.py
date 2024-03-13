@@ -112,13 +112,13 @@ async def embedfromremote(files: List[UploadFile], collection_name: Optional[str
         with open(file_path, "wb") as f:
             f.write(await file.read())
         
-        if collection_name is None:
-            # Handle the case when the collection_name is not defined
-            collection_name = file.filename
+        # if collection_name is None:
+        #     # Handle the case when the collection_name is not defined
+        #     collection_name = file.filename
 
     save_paths_to_file(saved_files)
     
-    os.system(f'python3 ingest.py {collection_name}')
+    os.system(f'python3 ingest.py --collection test')
     
     # Delete the contents of the folder
     [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
@@ -154,7 +154,7 @@ async def embed(files: QueryEmbedData):
     # Write the paths of the uploaded files to paths.txt
     save_paths_to_file(files.files)
     
-    os.system(f'python3 ingest.py ')
+    os.system(f'python3 ingest.py --collection test')
     
     # Delete the contents of the folder
     # [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
@@ -175,7 +175,7 @@ async def retrieve(query: QueryData):
     start_time = perf_counter()
     embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"})
     
-    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test")
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
 
@@ -213,6 +213,7 @@ def stream(cb, q) -> Generator:
 
     def task():
         x = cb()
+        # print(x['source_documents'])
         q.put(job_done)
 
     t = Thread(target=task)
@@ -242,20 +243,21 @@ def qstream(query:QueryData ):
     # print(query.query)
     embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"})
     
-    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test")
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
     q = Queue()
     llm = Ollama(model=model,callbacks=[QueueCallback(q)])
     output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
-
+    
     def cb():
-        output_function(query.query)
+        output_function(query.query)['source_documents']
 
     def generate():
         # yield json.dumps({"init": True, "model": llm_name})
         for token, _ in stream(cb, q):
-            print( f"data: {perf_counter()-start_time} {token} \n\n")
+            # print()
+            # print( f"data: {perf_counter()-start_time} {token} \n\n")
             yield f"{token}"
             # yield json.dumps({"token": token})
         yield f"[DONESTREAM]\n\n"
