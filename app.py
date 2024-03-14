@@ -37,6 +37,7 @@ app.add_middleware(
 )
 class QueryData(BaseModel):
     query: str
+    where:str
 
 class QueryEmbedData(BaseModel):
     files: List[str]
@@ -50,6 +51,14 @@ model = os.environ.get("MODEL", "llama2")
 target_source_chunks = int(os.environ.get('TARGET_SOURCE_CHUNKS',1))
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
 base_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+# class MItem(BaseModel):
+#     def __init__(self, from_: str, message: str, time: str, timestamp: float):
+#         self.from_ = from_
+#         self.message = message
+#         self.time = time
+#         self.timestamp = timestamp
+
+# my_array = [MItem(from_, message, time, timestamp) for from_, message, time, timestamp in [("user1", "Hello", "12:00", 123.45), ("user2", "World", "13:00", 678.90)]]
 
 quit_stream = False
 from constants import CHROMA_SETTINGS
@@ -66,6 +75,14 @@ async def updates(message: str = "", delay: float = 1.0):
             await asyncio.sleep(1)
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# @app.post("/save_mitem/")
+# async def save_mitem(mitem: MItem):
+#     with open("mitems.json", "a") as f:
+#         f.write(json.dumps(mitem.dict()) + "\n")
+#     return {"message": "MItem saved successfully"}
+
 
 from fastapi.responses import JSONResponse
 # Example route
@@ -231,7 +248,7 @@ def stream(cb, q) -> Generator:
             yield next_token, content
         except Empty:
             continue
-
+import json
 from langchain.chat_models import ChatOllama
 @app.post("/query-stream")
 def qstream(query:QueryData ):
@@ -248,19 +265,23 @@ def qstream(query:QueryData ):
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
     q = Queue()
     llm = Ollama(model=model,callbacks=[QueueCallback(q)])
+    
     output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     
     def cb():
-        output_function(query.query)['source_documents']
+        if query.where=="ollama":
+            llm.generate(prompts=[query.query]) #to query in ollama
+        else:
+            output_function(query.query)['source_documents'] #to query in context
 
     def generate():
         # yield json.dumps({"init": True, "model": llm_name})
         for token, _ in stream(cb, q):
             # print()
             # print( f"data: {perf_counter()-start_time} {token} \n\n")
-            yield f"{token}"
+            yield json.dumps({"token":token})
             # yield json.dumps({"token": token})
-        yield f"[DONESTREAM]\n\n"
+        yield json.dumps({"token":"[DONESTREAM]"})
     return EventSourceResponse(generate(), media_type="text/event-stream")
 
 from sse_starlette.sse import EventSourceResponse
