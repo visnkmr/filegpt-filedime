@@ -272,7 +272,7 @@ def qstream(query:QueryData ):
         if query.where=="ollama":
             llm.generate(prompts=[query.query]) #to query in ollama
         else:
-            output_function(query.query)['source_documents'] #to query in context
+            output_function(query.query) #to query in context
 
     def generate():
         # yield json.dumps({"init": True, "model": llm_name})

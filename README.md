@@ -17,7 +17,7 @@ python3 -m venv filedimegpt
 
 #### Step: Activate the Python Virtual Environment
 ```
-./filedimegpt/bin/activate
+source ./filedimegpt/bin/activate
 ```
 
 #### Step: Install the Requirements

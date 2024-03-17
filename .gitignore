@@ -3,6 +3,8 @@ poetry.lock
 __pycache__/
 db/
 otest/
+.venv/
+source_documents/
 filedimegpt/
 pyproject.toml
 privateGPT.py
