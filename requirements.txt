@@ -13,3 +13,4 @@ sentence_transformers==2.5.1
 gunicorn
 # langchain-community
 python-multipart
+sse_starlette
