@@ -42,7 +42,8 @@ class QueryData(BaseModel):
 class QueryEmbedData(BaseModel):
     files: List[str]
     # collection_name: str
-
+    
+from langchain.prompts import PromptTemplate
 load_dotenv()
 
 embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME")
@@ -51,6 +52,13 @@ model = os.environ.get("MODEL", "llama2")
 target_source_chunks = int(os.environ.get('TARGET_SOURCE_CHUNKS',1))
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
 base_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+
+template = """Use the following pieces of context to answer the question at the end. 
+If you don't know the answer, just say that you don't know, don't try to make up an answer. 
+{context}
+Question: {question}
+Helpful Answer:"""
+QA_CHAIN_PROMPT = PromptTemplate.from_template(template)
 # class MItem(BaseModel):
 #     def __init__(self, from_: str, message: str, time: str, timestamp: float):
 #         self.from_ = from_
@@ -135,13 +143,18 @@ async def embedfromremote(files: List[UploadFile], collection_name: Optional[str
 
     save_paths_to_file(saved_files)
     
-    os.system(f'python3 ingest.py --collection test')
+    exit_code=os.system(f'python3 ingest.py --collection test')
+    
     
     # Delete the contents of the folder
     [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
-    
-    return {"message": "Files embedded successfully", "saved_files": saved_files}
+    if exit_code == 0:
+        return {"message": "Files embedded successfully", "saved_files": saved_files}
+    else:
+        save_paths_to_file([])
+        return {"message": "Files embeddeing failed", "saved_files": []}
 
+    
 
 def read_file_paths_from_txt(file_path: str) -> List[str]:
     with open(file_path, 'r') as file:
@@ -186,13 +199,14 @@ from time import time,sleep,localtime,perf_counter
 from threading import Thread
 from langchain.callbacks import AsyncIteratorCallbackHandler
 start_time=perf_counter()
-
+from torch import cuda
 @app.post("/retrieve")
 async def retrieve(query: QueryData):
-    start_time = perf_counter()
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"})
     
-    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test")
+    start_time = perf_counter()
+    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"} if cuda.is_available() else {})
+    
+    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test",chain_type_kwargs={"prompt": QA_CHAIN_PROMPT})
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
 
@@ -250,6 +264,9 @@ def stream(cb, q) -> Generator:
             continue
 import json
 from langchain.chat_models import ChatOllama
+from langchain.schema.document import Document
+from pydantic.json import pydantic_encoder
+
 @app.post("/query-stream")
 def qstream(query:QueryData ):
     print(query)
@@ -258,7 +275,7 @@ def qstream(query:QueryData ):
     global quit_stream
     quit_stream=False
     # print(query.query)
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"})
+    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"} if cuda.is_available() else {})
     
     db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test")
 
@@ -266,21 +283,30 @@ def qstream(query:QueryData ):
     q = Queue()
     llm = Ollama(model=model,callbacks=[QueueCallback(q)])
     
-    output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
+    output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True,chain_type_kwargs={"prompt": QA_CHAIN_PROMPT})
     
     def cb():
         if query.where=="ollama":
             llm.generate(prompts=[query.query]) #to query in ollama
         else:
-            output_function(query.query) #to query in context
+            try:
+                output_function(query.query) #to query in context
+            except Exception as e:
+                print("error" + e)
 
     def generate():
         # yield json.dumps({"init": True, "model": llm_name})
-        for token, _ in stream(cb, q):
+        try:
+            for token, _ in stream(cb, q):
             # print()
             # print( f"data: {perf_counter()-start_time} {token} \n\n")
-            yield json.dumps({"token":token})
+                yield json.dumps({"token":token})
             # yield json.dumps({"token": token})
+        # source_documents = output_function(query.query)['source_documents']
+        # print(source_documents)
+        # yield json.dumps({"token": "Source--"+"\n".join(json.dumps(doc.__dict__, default=str) for doc in source_documents)})
+        except Exception as e:
+            yield json.dumps({"token":"error"+e})
         yield json.dumps({"token":"[DONESTREAM]"})
     return EventSourceResponse(generate(), media_type="text/event-stream")
 

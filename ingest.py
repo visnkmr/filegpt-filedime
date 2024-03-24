@@ -5,18 +5,23 @@ from typing import List
 from multiprocessing import Pool
 from tqdm import tqdm
 
+from langchain.document_loaders.unstructured import (UnstructuredFileLoader)
 from langchain.document_loaders import (
     CSVLoader,
+    UnstructuredExcelLoader,
     EverNoteLoader,
     PyMuPDFLoader,
     TextLoader,
+    PythonLoader,
+    UnstructuredODTLoader,
     UnstructuredEmailLoader,
     UnstructuredEPubLoader,
     UnstructuredHTMLLoader,
     UnstructuredMarkdownLoader,
     UnstructuredODTLoader,
     UnstructuredPowerPointLoader,
-    UnstructuredWordDocumentLoader,
+    JSONLoader,
+    UnstructuredWordDocumentLoader
 )
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -59,6 +64,11 @@ class MyElmLoader(UnstructuredEmailLoader):
 # Map file extensions to document loaders and their arguments
 LOADER_MAPPING = {
     ".csv": (CSVLoader, {}),
+    ".xlsx": (UnstructuredExcelLoader, {}),
+    ".xls": (UnstructuredExcelLoader, {}),
+    ".odt": (UnstructuredODTLoader, {}),
+    ".py": (PythonLoader, {}),
+    # ".json": (JSONLoader, {"jq_schema":"."}),
     # ".docx": (Docx2txtLoader, {}),
     ".doc": (UnstructuredWordDocumentLoader, {}),
     ".docx": (UnstructuredWordDocumentLoader, {}),
@@ -75,13 +85,26 @@ LOADER_MAPPING = {
     # Add more mappings for other file extensions and loaders as needed
 }
 
-
+import chardet
 def load_single_document(file_path: str) -> List[Document]:
     ext = "." + file_path.rsplit(".", 1)[-1]
     if ext in LOADER_MAPPING:
         loader_class, loader_args = LOADER_MAPPING[ext]
         loader = loader_class(file_path, **loader_args)
         return loader.load()
+    # else:
+    #     with open(file_path, 'rb') as f:
+    #         result = chardet.detect(f.read())["encoding"]
+    #         print("-------------->"+result)
+
+    #     metadata = {"source": file_path}
+    #     text=""
+    #     with open(file_path, 'r',encoding=result) as file:
+    #         text=file.read()
+    #     return [Document(page_content=text, metadata=metadata)]
+        # loader = UnstructuredFileLoader(file_path)
+        # return loader.load()
+    
 
     raise ValueError(f"Unsupported file extension '{ext}'")
 
@@ -136,12 +159,12 @@ def does_vectorstore_exist(persist_directory: str) -> bool:
             if len(list_index_files) > 3:
                 return True
     return False
-
+from torch import cuda
 def main(collection):
     
 
     # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"})
+    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"}  if cuda.is_available() else {})
 
     # if does_vectorstore_exist(persist_directory):
     #     # Update and store locally vectorstore
