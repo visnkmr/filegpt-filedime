@@ -53,7 +53,7 @@ target_source_chunks = int(os.environ.get('TARGET_SOURCE_CHUNKS',1))
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
 base_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
 
-template = """Use the following pieces of context to answer the question at the end. 
+template = """You're a helpful AI assistant. Use the following pieces of context to answer the question at the end. 
 If you don't know the answer, just say that you don't know, don't try to make up an answer. 
 {context}
 Question: {question}
@@ -161,7 +161,7 @@ def read_file_paths_from_txt(file_path: str) -> List[str]:
         file_paths = [line.strip() for line in file.readlines()]
     return file_paths
 
-
+from ingest import main
 @app.post("/embed")
 async def embed(files: QueryEmbedData):
     file_paths=read_file_paths_from_txt("source_documents/paths.txt")
@@ -184,7 +184,8 @@ async def embed(files: QueryEmbedData):
     # Write the paths of the uploaded files to paths.txt
     save_paths_to_file(files.files)
     
-    os.system(f'python3 ingest.py --collection test')
+    # os.system(f'python3 ingest.py --collection test')
+    main("test")
     
     # Delete the contents of the folder
     # [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
@@ -200,23 +201,33 @@ from threading import Thread
 from langchain.callbacks import AsyncIteratorCallbackHandler
 start_time=perf_counter()
 from torch import cuda
-@app.post("/retrieve")
-async def retrieve(query: QueryData):
-    
+
+def findres(query):
     start_time = perf_counter()
     embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"} if cuda.is_available() else {})
     
-    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test",chain_type_kwargs={"prompt": QA_CHAIN_PROMPT})
+    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test")
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
 
     llm = Ollama(model=model,base_url=base_url)
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
-    res = qa(query.query) 
+    res = qa(query) 
     print(perf_counter()-start_time)
     print(res)   
     answer, docs = res['result'], res['source_documents']
     print(answer)
+    return answer,docs
+
+if __name__ == "__main__":
+    findres("how to run filedime")
+
+
+
+@app.post("/retrieve")
+async def retrieve(query: QueryData):
+    
+    answer,docs=findres(query.query)
     return {"results": answer, "docs":docs}
     
 
