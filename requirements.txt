@@ -14,3 +14,10 @@ gunicorn
 # langchain-community
 python-multipart
 sse_starlette
+soundfile
+torchaudio
+librosa
+cn2an
+g2p_en
+cached_path
+sounddevice

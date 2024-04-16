@@ -1,5 +1,5 @@
 FiledimeGPT is made to work out of the box with Filedime, remotely or locally.
-#### Thanks to (https://github.com/imartinez/privateGPT), (https://github.com/jmorganca/ollama) and (https://github.com/menloparklab/privateGPT-app)
+#### Thanks to (https://github.com/imartinez/privateGPT), (https://github.com/jmorganca/ollama), (https://github.com/myshell-ai/MeloTTS) and (https://github.com/menloparklab/privateGPT-app)
 
 #### Make sure to have Ollama running on your system from https://ollama.ai and by default it expects ollama to be running on port 11434
 #### Step: Download/pull models (if you already have models loaded in Ollama, then not required)
@@ -38,7 +38,7 @@ OLLAMA_URL=http://localhost:11434
 
 #### Step: Run this command
 ```
-gunicorn app:app -k uvicorn.workers.UvicornWorker --timeout 1500 -b 0.0.0.0:8694    
+python app.py  
 
 ```
 

@@ -254,7 +254,7 @@ import uvicorn
 if __name__ == "__main__":
     # findres("what are the contents")
     # findres("how far is the sun from earth")
-    uvicorn.run(app, host="0.0.0.0", port=8693)
+    uvicorn.run(app, host="0.0.0.0", port=8694, timeout_keep_alive=1500)
 
 
 @app.post("/retrieve")
