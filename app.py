@@ -54,11 +54,14 @@ source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
 base_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
 
 template = """You're a helpful AI assistant. Use the following pieces of context to answer the question at the end. 
-If you don't know the answer, just say that you don't know, don't try to make up an answer. 
+If you don't know the answer, just say that you don't know, don't try to make up an answer. Always start your reply with "thanks".
 {context}
 Question: {question}
 Helpful Answer:"""
-QA_CHAIN_PROMPT = PromptTemplate.from_template(template)
+
+QA_CHAIN_PROMPT = PromptTemplate(
+    template=template, input_variables=["context", "question"]
+)
 # class MItem(BaseModel):
 #     def __init__(self, from_: str, message: str, time: str, timestamp: float):
 #         self.from_ = from_
@@ -70,7 +73,6 @@ QA_CHAIN_PROMPT = PromptTemplate.from_template(template)
 
 quit_stream = False
 from constants import CHROMA_SETTINGS
-
 @app.get("/updates")
 async def updates(message: str = "", delay: float = 1.0):
     """
@@ -91,6 +93,35 @@ async def updates(message: str = "", delay: float = 1.0):
 #         f.write(json.dumps(mitem.dict()) + "\n")
 #     return {"message": "MItem saved successfully"}
 
+class QueryD(BaseModel):
+    text: str
+    comments:str
+from melo.api import TTS
+
+# Speed is adjustable
+speed = 0.8
+
+# CPU is sufficient for real-time inference.
+# You can set it manually to 'cpu' or 'cuda' or 'cuda:0' or 'mps'
+device = 'auto' # Will automatically use GPU if available
+
+# English 
+model = TTS(language='EN_V2', device=device)
+# print(model)
+speaker_ids = model.hps.data.spk2id
+
+@app.post("/tts")
+async def tts(query: QueryD):
+    print(query.text)
+
+    # American accent
+    # output_path = 'en-us.wav'
+    # model.tts_to_file(text, speaker_ids['EN-US'], output_path, speed=speed)
+
+    # British accent
+    model.tts_to_sound(query.text, speaker_ids['EN-BR'], speed=speed)
+
+    return {"response":"text recieved"}
 
 from fastapi.responses import JSONResponse
 # Example route
@@ -219,9 +250,11 @@ def findres(query):
     print(answer)
     return answer,docs
 
+import uvicorn
 if __name__ == "__main__":
-    findres("how to run filedime")
-
+    # findres("what are the contents")
+    # findres("how far is the sun from earth")
+    uvicorn.run(app, host="0.0.0.0", port=8693)
 
 
 @app.post("/retrieve")
@@ -294,7 +327,7 @@ def qstream(query:QueryData ):
     q = Queue()
     llm = Ollama(model=model,callbacks=[QueueCallback(q)])
     
-    output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True,chain_type_kwargs={"prompt": QA_CHAIN_PROMPT})
+    output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     
     def cb():
         if query.where=="ollama":
