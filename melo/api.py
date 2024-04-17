@@ -10,6 +10,13 @@ import torch.nn as nn
 from tqdm import tqdm
 import torch
 
+import threading
+import queue
+import sounddevice as sd
+import numpy as np
+
+
+
 from . import utils
 from . import commons
 from .models import SynthesizerTrn
@@ -18,12 +25,27 @@ from .mel_processing import spectrogram_torch, spectrogram_torch_conv
 from .download_utils import load_or_download_config, load_or_download_model
 
 class TTS(nn.Module):
+    
     def __init__(self, 
                 language,
                 device='auto',
                 use_hf=True,
                 config_path=None,
                 ckpt_path=None):
+        def play_audio(audio_queue):
+                while True:
+                    audio = audio_queue.get()
+                    if audio is None: # Signal to stop
+                        break
+                    sd.play(audio, samplerate=44100)
+                    sd.wait()
+        # audio_queue.put(None)
+        # audio_player.join()
+            # Initialize the queue and the audio player thread
+        global audio_queue
+        audio_queue= queue.Queue()
+        audio_player = threading.Thread(target=play_audio, args=(audio_queue,))
+        audio_player.start()
         super().__init__()
         if device == 'auto':
             device = 'cpu'
@@ -171,31 +193,6 @@ class TTS(nn.Module):
         audio_player.join()
 
     def tts_to_sound(self, text, speaker_id, sdp_ratio=0.2, noise_scale=0.6, noise_scale_w=0.8, speed=1.0, pbar=None, position=None, quiet=False,):
-            import threading
-            import queue
-            import sounddevice as sd
-            import numpy as np
-
-            # Assuming `generate_audio` is a function that generates audio data for a given text
-            # def generate_audio(text):
-            #     # Placeholder for actual audio generation logic
-            #     return np.random.rand(44100) # Example: Generate 1 second of random audio
-
-            # Function to play audio from the queue
-            def play_audio(audio_queue):
-                while True:
-                    audio = audio_queue.get()
-                    if audio is None: # Signal to stop
-                        break
-                    sd.play(audio, samplerate=44100)
-                    sd.wait()
-
-            # Initialize the queue and the audio player thread
-            audio_queue = queue.Queue()
-            audio_player = threading.Thread(target=play_audio, args=(audio_queue,))
-            audio_player.start()
-            
-            
             language = self.language
             texts = self.split_sentences_into_pieces(text, language, quiet)
             if pbar:
@@ -241,5 +238,4 @@ class TTS(nn.Module):
                 # f.close()
                 # np.savetxt(f"./audio_{i}.txt",audio)
             torch.cuda.empty_cache()
-            audio_queue.put(None)
-            audio_player.join()
+            
