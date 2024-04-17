@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import asynccontextmanager
+import signal
 from dotenv import load_dotenv
 from fastapi.responses import StreamingResponse
 from langchain.chains import RetrievalQA
@@ -26,7 +28,15 @@ from fastapi.responses import Response
 from time import time,sleep,localtime
 import multiprocessing
 import random
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the ML model
+    # ml_models["answer_to_everything"] = fake_answer_to_everything_ml_model
+    yield
+    # Clean up the ML models and release the resources
+    print("closing")
+    model_tts.closing()
+    os.kill(os.getpid(), signal.SIGTERM)
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -106,9 +116,9 @@ speed = 0.8
 device = 'auto' # Will automatically use GPU if available
 
 # English 
-model = TTS(language='EN_V2', device=device)
+model_tts = TTS(language='EN_V2', device=device)
 # print(model)
-speaker_ids = model.hps.data.spk2id
+speaker_ids = model_tts.hps.data.spk2id
 
 @app.post("/tts")
 async def tts(query: QueryD):
@@ -119,8 +129,8 @@ async def tts(query: QueryD):
     # model.tts_to_file(text, speaker_ids['EN-US'], output_path, speed=speed)
 
     # British accent
-    model.tts_to_sound(query.text, speaker_ids['EN-BR'], speed=speed)
-
+    model_tts.tts_to_sound(query.text, speaker_ids['EN-BR'], speed=speed)
+    
     return {"response":"text recieved"}
 
 from fastapi.responses import JSONResponse
@@ -175,6 +185,7 @@ async def embedfromremote(files: List[UploadFile], collection_name: Optional[str
     save_paths_to_file(saved_files)
     
     exit_code=os.system(f'python3 ingest.py --collection test')
+    # main("test")
     
     
     # Delete the contents of the folder
@@ -250,11 +261,6 @@ def findres(query):
     print(answer)
     return answer,docs
 
-import uvicorn
-if __name__ == "__main__":
-    # findres("what are the contents")
-    # findres("how far is the sun from earth")
-    uvicorn.run(app, host="0.0.0.0", port=8694, timeout_keep_alive=1500)
 
 
 @app.post("/retrieve")
@@ -355,3 +361,10 @@ def qstream(query:QueryData ):
     return EventSourceResponse(generate(), media_type="text/event-stream")
 
 from sse_starlette.sse import EventSourceResponse
+
+
+import uvicorn
+if __name__ == "__main__":
+    # findres("what are the contents")
+    # findres("how far is the sun from earth")
+    uvicorn.run(app, host="0.0.0.0", port=8694, timeout_keep_alive=1500)
