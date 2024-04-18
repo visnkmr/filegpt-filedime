@@ -58,7 +58,7 @@ load_dotenv()
 
 embeddings_model_name = os.environ.get("EMBEDDINGS_MODEL_NAME")
 persist_directory = os.environ.get('PERSIST_DIRECTORY')
-model = os.environ.get("MODEL", "llama2")
+model = os.environ.get("MODEL", "llama3")
 target_source_chunks = int(os.environ.get('TARGET_SOURCE_CHUNKS',1))
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
 base_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
