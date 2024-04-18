@@ -5,6 +5,9 @@ pkgs.mkShell rec{
   nativeBuildInputs = with pkgs; [
     python311
     stdenv.cc.cc.lib
+    portaudio
+    python311Packages.pyaudio
+    python311Packages.sounddevice
     libstdcxx5
     cudatoolkit
     linuxPackages.nvidia_x11
