@@ -252,7 +252,7 @@ def findres(query):
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
 
-    llm = Ollama(model=model,base_url=base_url)
+    llm = Ollama(model="llama2",base_url=base_url)
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     res = qa(query) 
     print(perf_counter()-start_time)
@@ -331,13 +331,16 @@ def qstream(query:QueryData ):
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
     q = Queue()
-    llm = Ollama(model=model,callbacks=[QueueCallback(q)])
+    if query.where=="ollama":
+        llm = Ollama(model=model,callbacks=[QueueCallback(q)])
+    else:
+        llm = Ollama(model="llama2",callbacks=[QueueCallback(q)])
     
     output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     
     def cb():
         if query.where=="ollama":
-            llm.generate(prompts=[query.query]) #to query in ollama
+            llm.generate(prompts=[query.query],stop=["<|eot_id|>"]) #to query in ollama
         else:
             try:
                 output_function(query.query) #to query in context
