@@ -1,5 +1,5 @@
-langchain==0.1.11
-chromadb==0.4.24
+langchain
+chromadb
 urllib3==2.2.1
 PyMuPDF==1.23.26
 python-dotenv==1.0.1

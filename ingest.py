@@ -34,6 +34,7 @@ from constants import CHROMA_SETTINGS
 # Load environment variables
 persist_directory = os.environ.get('PERSIST_DIRECTORY', 'db')
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
+# embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'mixedbread-ai/mxbai-embed-large-v1')
 embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'all-MiniLM-L6-v2')
 chunk_size = 500
 chunk_overlap = 50
@@ -160,7 +161,9 @@ def does_vectorstore_exist(persist_directory: str) -> bool:
                 return True
     return False
 from torch import cuda
-def main(collection):
+from langchain.llms import Ollama
+from langchain.chains import RetrievalQA
+def main():
     
 
     # Create embeddings
@@ -189,10 +192,21 @@ def main(collection):
 import argparse
 if __name__ == "__main__":
  # Create the argument parser
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--collection", help="Saves the embedding in a collection name as specified")
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("--collection", help="Saves the embedding in a collection name as specified")
 
-    # Parse the command-line arguments
-    args = parser.parse_args()
+    # # Parse the command-line arguments
+    # args = parser.parse_args()
+    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"}  if cuda.is_available() else {})
+    print("Creating new vectorstore")
+    texts = process_documents()
+    print(f"Creating embeddings. May take some minutes...")
+    db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
+    db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
+    db.persist()
+    retriever = db.as_retriever(search_kwargs={"k": 1})
 
-    main(args.collection)
+    llm = Ollama(model="llama3",base_url='http://localhost:11434')
+    qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
+    res = qa("is langchain installed") 
+    print(res)

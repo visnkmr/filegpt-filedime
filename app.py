@@ -227,7 +227,7 @@ async def embed(files: QueryEmbedData):
     save_paths_to_file(files.files)
     
     # os.system(f'python3 ingest.py --collection test')
-    main("test")
+    main()
     
     # Delete the contents of the folder
     # [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
@@ -252,7 +252,7 @@ def findres(query):
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
 
-    llm = Ollama(model="llama2",base_url=base_url)
+    llm = Ollama(model=model,base_url=base_url)
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     res = qa(query) 
     print(perf_counter()-start_time)
@@ -331,10 +331,10 @@ def qstream(query:QueryData ):
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
     q = Queue()
-    if query.where=="ollama":
-        llm = Ollama(model=model,callbacks=[QueueCallback(q)])
-    else:
-        llm = Ollama(model="llama2",callbacks=[QueueCallback(q)])
+    # if query.where=="ollama":
+    llm = Ollama(model=model,callbacks=[QueueCallback(q)])
+    # else:
+    #     llm = Ollama(model="llama2",callbacks=[QueueCallback(q)])
     
     output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     
@@ -346,6 +346,7 @@ def qstream(query:QueryData ):
                 output_function(query.query) #to query in context
             except Exception as e:
                 print("error" + e)
+        
 
     def generate():
         # yield json.dumps({"init": True, "model": llm_name})

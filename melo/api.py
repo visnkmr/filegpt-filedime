@@ -23,9 +23,20 @@ from .models import SynthesizerTrn
 from .split_utils import split_sentence
 from .mel_processing import spectrogram_torch, spectrogram_torch_conv
 from .download_utils import load_or_download_config, load_or_download_model
+def shutdown_audio_player():
+    global isenabled, audio_queue, audio_player
+    isenabled = False
+    audio_queue.put(None)  # Unblock the queue.get call in play_audio
+    audio_player.join()
+import signal
 
+def signal_handler(signum, frame):
+    shutdown_audio_player()
+    print("Aborted")
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 class TTS(nn.Module):
-    global isenabled
     isenabled=True
     global play_audio
     def play_audio(audio_queue):
@@ -48,7 +59,7 @@ class TTS(nn.Module):
         global audio_queue
         audio_queue= queue.Queue()
         global audio_player
-        audio_player = threading.Thread(target=play_audio, args=(audio_queue,))
+        audio_player = threading.Thread(target=play_audio, args=(audio_queue,),daemon=True)
         audio_player.start()
         super().__init__()
         if device == 'auto':
