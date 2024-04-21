@@ -325,18 +325,19 @@ def qstream(query:QueryData ):
     global quit_stream
     quit_stream=False
     # print(query.query)
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"} if cuda.is_available() else {})
-    
-    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test")
-
-    retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
     q = Queue()
-    # if query.where=="ollama":
     llm = Ollama(model=model,callbacks=[QueueCallback(q)])
+    if query.where!="ollama":
+        embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"} if cuda.is_available() else {})
+    
+        db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+
+        retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
+    
+        output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     # else:
     #     llm = Ollama(model="llama2",callbacks=[QueueCallback(q)])
     
-    output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
     
     def cb():
         if query.where=="ollama":

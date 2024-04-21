@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 import os
 import glob
@@ -185,7 +186,7 @@ def main():
     print(f"Creating embeddings. May take some minutes...")
     db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
     db.persist()
-    db = None
+    # db = None
 
     print(f"Ingestion complete! You can now run privateGPT.py/use the /retrieve route to query your documents")
 
@@ -202,7 +203,7 @@ if __name__ == "__main__":
     texts = process_documents()
     print(f"Creating embeddings. May take some minutes...")
     db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
-    db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
+    # db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
     db.persist()
     retriever = db.as_retriever(search_kwargs={"k": 1})
 
