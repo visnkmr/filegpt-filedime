@@ -164,6 +164,7 @@ def does_vectorstore_exist(persist_directory: str) -> bool:
 from torch import cuda
 from langchain.llms import Ollama
 from langchain.chains import RetrievalQA
+
 def main():
     
 
@@ -189,25 +190,109 @@ def main():
     # db = None
 
     print(f"Ingestion complete! You can now run privateGPT.py/use the /retrieve route to query your documents")
-
+from langchain.document_loaders import TextLoader
+from langchain.text_splitter import CharacterTextSplitter
+from vlite.utils import process_pdf,process_file
+# from vlite import VLite
+from vlite.vlite import VLite
+from langchain_community.chat_models import ChatOpenAI
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+from langchain import hub
+from langchain_core.prompts import ChatPromptTemplate
 import argparse
 if __name__ == "__main__":
+    from langchain_core.pydantic_v1 import Field
+    metadata: dict = Field(default_factory=dict)
+    # metadata={'source': '/home/ubroger/Documents/GitHub/filegpt-filedime/requirements.txt'}
+    print(metadata)
+    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
+                                       model_kwargs={"device": "cuda"} if cuda.is_available() else {})
+    vlite=VLite(embedding_function=embeddings)
+    # vlite=VLite(model_name=embeddings_model_name)
  # Create the argument parser
     # parser = argparse.ArgumentParser()
     # parser.add_argument("--collection", help="Saves the embedding in a collection name as specified")
 
     # # Parse the command-line arguments
     # args = parser.parse_args()
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"}  if cuda.is_available() else {})
     print("Creating new vectorstore")
-    texts = process_documents()
-    print(f"Creating embeddings. May take some minutes...")
-    db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
-    # db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
-    db.persist()
+    print(f"Loading documents from {source_directory}")
+    texts=process_documents()
+    db = vlite.from_documents(documents=texts,embedding=embeddings)
     retriever = db.as_retriever(search_kwargs={"k": 1})
+    # from langchain_core.vectorstores import VectorStoreRetriever
+    # i=VectorStoreRetriever(vectorstore=db)
+    # print(i)
+    # res=db.vlite.retrieve(
+    #     text="is langchain installed",
+    #     top_k=1,
+    #     return_scores=True,
+    #     embedding=None,
+    # )
+    # db.similarity_search_with_score(query="is langchain installed",k=1)
+    # print(retriever)
+    # results=db.vlite.retrieve(
+    #     text="is langchain installed",
+    #     top_k=1,
+    #     return_scores=True,
+    #     embedding=embeddings,
+    # )
+    # import json
+    # parsed_data = json.loads(results)
+    # print(parsed_data[0])
+    # print(type(results))
+    # retriever = vlite.retrieve()
+    # print(retriever)
+    # prompt = ChatPromptTemplate.from_template("""Answer the following question based only on the provided context:
+    #
+    # <context>
+    # {context}
+    # </context>
+    #
+    # Question: {input}""")
+    # llm = Ollama(model="llama3",base_url='http://localhost:11434')
+    # document_chain = create_stuff_documents_chain(llm, prompt)  # chain the LLM to the prompt
+    # retrieval_chain = create_retrieval_chain(retriever, document_chain)
+    # # qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
+    # response = retrieval_chain.invoke({"input": "is langchain installed"})
+    # print(response["answer"])
+
+    # embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"}  if cuda.is_available() else {})
+    # db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+    # db.persist()
+    # retriever = db.as_retriever(search_kwargs={"k": 1})
 
     llm = Ollama(model="llama3",base_url='http://localhost:11434')
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
-    res = qa("is langchain installed") 
+    res = qa("is langchain installed")
+    # res = qa("What does this convey about the author")
     print(res)
+
+
+    # lite = VLite(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    # file_paths = read_file_paths_from_txt('source_documents/paths.txt')
+    # results = []
+    # llm = Ollama(model="llama3", base_url='http://localhost:11434')
+    # with Pool(processes=os.cpu_count()) as pool:
+    #     with tqdm(total=len(file_paths), desc='Loading new documents', ncols=80) as pbar:
+    #         for i, docs in enumerate(pool.imap_unordered(process_file, file_paths)):
+    #             results.extend(docs)
+    #             pbar.update()
+    # print(results)
+    # db = vlite.add(results)
+    # retriever = query_constructor.load_query_constructor_runnable(llm=llm, document_contents=vlite.retrieve(
+    #     text="is langchain installed", embedding=embeddings, top_k=1))
+
+    # lite=VLite(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    # print(f"Loading documents from {source_directory}")
+    # file_paths = read_file_paths_from_txt('source_documents/paths.txt')
+    # results = []
+    # with Pool(processes=os.cpu_count()) as pool:
+    #     with tqdm(total=len(file_paths), desc='Loading new documents', ncols=80) as pbar:
+    #         for i, docs in enumerate(pool.imap_unordered(process_file, file_paths)):
+    #             results.extend(docs)
+    #             pbar.update()
+    # # print(texts)
+    # db = vlite.add(results)
+    # print(vlite.retrieve(text="is langchain installed",top_k=1))
