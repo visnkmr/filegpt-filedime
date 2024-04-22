@@ -184,17 +184,17 @@ async def embedfromremote(files: List[UploadFile], collection_name: Optional[str
 
     save_paths_to_file(saved_files)
     
-    exit_code=os.system(f'python3 ingest.py --collection test')
-    # main("test")
+    # exit_code=os.system(f'python3 ingest.py --collection test')
+    main()
     
     
     # Delete the contents of the folder
-    [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
-    if exit_code == 0:
-        return {"message": "Files embedded successfully", "saved_files": saved_files}
-    else:
-        save_paths_to_file([])
-        return {"message": "Files embeddeing failed", "saved_files": []}
+    # [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
+    # if exit_code == 0:
+    #     return {"message": "Files embedded successfully", "saved_files": saved_files}
+    # else:
+    #     save_paths_to_file([])
+    #     return {"message": "Files embeddeing failed", "saved_files": []}
 
     
 

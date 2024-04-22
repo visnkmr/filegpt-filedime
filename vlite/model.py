@@ -4,20 +4,27 @@ import time
 import torch
 from typing import Dict
 import logging
-
+from .utils import check_cuda_available, check_mps_available
 # Configure logging
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class EmbeddingModel:
-    def __init__(self, model_name="mixedbread-ai/mxbai-embed-large-v1", device='cpu', log_enabled=True):
+    def __init__(self, model_name="mixedbread-ai/mxbai-embed-large-v1", device=None, log_enabled=True):
+        if device is None:
+            if check_cuda_available():
+                self.device = 'cuda'
+            elif check_mps_available():
+                self.device = 'mps'
+            else:
+                self.device = 'cpu'
         self.log_enabled = log_enabled
         start_time = time.time()
         self.device = device
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name).to(self.device)
-        self.dimension = 1024 #hardcoded
-        self.context_length = 512 #hardcoded
+        self.dimension = 384 #hardcoded
+        self.context_length = 500 #hardcoded
         self.embedding_dtype = "float32"
         end_time = time.time()
         logger.debug(f"[EmbeddingModel.__init__] Execution time: {end_time - start_time:.5f} seconds")

@@ -7,7 +7,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 from langchain.document_loaders.unstructured import (UnstructuredFileLoader)
-from langchain.document_loaders import (
+from langchain_community.document_loaders import (
     CSVLoader,
     UnstructuredExcelLoader,
     EverNoteLoader,
@@ -26,9 +26,9 @@ from langchain.document_loaders import (
 )
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.docstore.document import Document
+# from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.docstore.document import Document
 from constants import CHROMA_SETTINGS
 
 
@@ -164,7 +164,11 @@ def does_vectorstore_exist(persist_directory: str) -> bool:
 from torch import cuda
 from langchain.llms import Ollama
 from langchain.chains import RetrievalQA
+from vlite.vlite import VLite
 
+embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
+                                       model_kwargs={"device": "cuda"} if cuda.is_available() else {})
+vlite=VLite(embedding_function=embeddings)
 def main():
     
 
@@ -190,22 +194,12 @@ def main():
     # db = None
 
     print(f"Ingestion complete! You can now run privateGPT.py/use the /retrieve route to query your documents")
-from langchain.document_loaders import TextLoader
-from langchain.text_splitter import CharacterTextSplitter
-from vlite.utils import process_pdf,process_file
-# from vlite import VLite
-from vlite.vlite import VLite
-from langchain_community.chat_models import ChatOpenAI
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains import create_retrieval_chain
-from langchain import hub
-from langchain_core.prompts import ChatPromptTemplate
-import argparse
+
 if __name__ == "__main__":
-    from langchain_core.pydantic_v1 import Field
-    metadata: dict = Field(default_factory=dict)
-    # metadata={'source': '/home/ubroger/Documents/GitHub/filegpt-filedime/requirements.txt'}
-    print(metadata)
+    # from langchain_core.pydantic_v1 import Field
+    # metadata: dict = Field(default_factory=dict)
+    # # metadata={'source': '/home/ubroger/Documents/GitHub/filegpt-filedime/requirements.txt'}
+    # print(metadata)
     embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
                                        model_kwargs={"device": "cuda"} if cuda.is_available() else {})
     vlite=VLite(embedding_function=embeddings)
@@ -216,11 +210,11 @@ if __name__ == "__main__":
 
     # # Parse the command-line arguments
     # args = parser.parse_args()
-    print("Creating new vectorstore")
-    print(f"Loading documents from {source_directory}")
+    # print("Creating new vectorstore")
+    # print(f"Loading documents from {source_directory}")
     texts=process_documents()
-    db = vlite.from_documents(documents=texts,embedding=embeddings)
-    retriever = db.as_retriever(search_kwargs={"k": 1})
+    db = vlite.from_documents(documents=texts,embedding=embeddings,collection="filegpt")
+    retriever = db.as_retriever(search_kwargs={"k": 100})
     # from langchain_core.vectorstores import VectorStoreRetriever
     # i=VectorStoreRetriever(vectorstore=db)
     # print(i)
@@ -265,10 +259,13 @@ if __name__ == "__main__":
 
     llm = Ollama(model="llama3",base_url='http://localhost:11434')
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
-    res = qa("is langchain installed")
+    # res = qa("what are the file contents about")
     # res = qa("What does this convey about the author")
-    print(res)
-
+    # print(res)
+    while True:
+        user_input = input("Enter the message=> ")
+        output = qa(user_input)
+        print("Response=>", output)
 
     # lite = VLite(model_name="sentence-transformers/all-MiniLM-L6-v2")
     # file_paths = read_file_paths_from_txt('source_documents/paths.txt')

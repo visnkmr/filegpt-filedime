@@ -22,27 +22,27 @@ try:
 except ImportError:
     run_ocr = None
 
-def chop_and_chunk(text, max_seq_length=512, fast=False):
+def chop_and_chunk(text, max_seq_length=512, fast=True):
     """
     Chop text into chunks of max_seq_length tokens or max_seq_length*4 characters (fast mode).
     """
     if isinstance(text, str):
         text = [text]
-    enc = tiktoken.get_encoding("cl100k_base")
+    # enc = tiktoken.get_encoding("cl100k_base")
     chunks = []
     for t in text:
-        if fast:
-            chunk_size = max_seq_length * 4
-            chunks.extend([t[i:i + chunk_size] for i in range(0, len(t), chunk_size)])
-        else:
-            token_ids = enc.encode(t, disallowed_special=())
-            num_tokens = len(token_ids)
-            if num_tokens <= max_seq_length:
-                chunks.append(t)
-            else:
-                for i in range(0, num_tokens, max_seq_length):
-                    chunk = enc.decode(token_ids[i:i + max_seq_length])
-                    chunks.append(chunk)
+        # if fast:
+        chunk_size = max_seq_length * 4
+        chunks.extend([t[i:i + chunk_size] for i in range(0, len(t), chunk_size)])
+        # else:
+        #     token_ids = enc.encode(t, disallowed_special=())
+        #     num_tokens = len(token_ids)
+        #     if num_tokens <= max_seq_length:
+        #         chunks.append(t)
+        #     else:
+        #         for i in range(0, num_tokens, max_seq_length):
+        #             chunk = enc.decode(token_ids[i:i + max_seq_length])
+        #             chunks.append(chunk)
     # print("Chopped text into these chunks:", chunks)
     # print(f"Chopped text into {len(chunks)} chunks.")
     return chunks

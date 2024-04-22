@@ -18,11 +18,11 @@ class VLite:
         start_time = time.time()
         if device is None:
             if check_cuda_available():
-                device = 'cuda'
+                self.device = 'cuda'
             elif check_mps_available():
-                device = 'mps'
+                self.device = 'mps'
             else:
-                device = 'cpu'
+                self.device = 'cpu'
         logger.info(f"[VLite.__init__] Initializing VLite with device: {device}")
         self.device = device
         if collection is None:
