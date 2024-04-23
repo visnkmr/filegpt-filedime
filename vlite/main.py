@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class VLite:
-    def __init__(self, collection=None, device=None, model_name='mixedbread-ai/mxbai-embed-large-v1'):
+    def __init__(self, collection=None, device=None, model_name='sentence-transformers/all-MiniLM-L6-v2'):
         start_time = time.time()
         if device is None:
             if check_cuda_available():
@@ -35,7 +35,7 @@ class VLite:
         try:
             ctx_file = self.ctx.read(collection)
             ctx_file.load()
-
+            # print("loaded existing context file")
             self.index = {
                 chunk_id: {
                     'text': ctx_file.contexts[idx] if idx < len(ctx_file.contexts) else "",
@@ -44,7 +44,9 @@ class VLite:
                 }
                 for idx, chunk_id in enumerate(ctx_file.metadata.keys())
             }
+            # print(self.index)
         except FileNotFoundError:
+            # print("creating new")
             logger.warning(f"[VLite.__init__] Collection file {self.collection} not found. Initializing empty attributes.")
 
         end_time = time.time()
@@ -77,6 +79,7 @@ class VLite:
             all_metadata.extend([item_metadata] * len(chunks))
             all_ids.extend([item_id] * len(chunks))
         binary_encoded_data = self.model.embed(all_chunks, precision="binary")
+        # print(binary_encoded_data)
 
 
         for idx, (chunk, binary_vector, metadata) in enumerate(zip(all_chunks, binary_encoded_data, all_metadata)):
@@ -104,6 +107,7 @@ class VLite:
         if text:
             logger.info(f"[VLite.retrieve] Retrieving top {top_k} similar texts for query: {text}")
             query_binary_vectors = self.model.embed(text, precision="binary")
+            # print(query_binary_vectors)
             # Perform search on the query binary vectors
             results = []
             for query_binary_vector in query_binary_vectors:
@@ -139,6 +143,9 @@ class VLite:
         query_binary_vector = np.array(query_binary_vector).reshape(-1)
         logger.debug(f"[VLite.rank_and_filter] Shape of query vector after reshaping: {query_binary_vector.shape}")
         # Collect all binary vectors and ensure they all have the same shape as the query vector
+        # binary_vectors = [item['binary_vector'] for item in self.index.values()]
+        # print(binary_vectors)
+        # print([len(item['binary_vector']) for item in self.index.values()],len(query_binary_vector))
         binary_vectors = [item['binary_vector'] for item in self.index.values() if len(item['binary_vector']) == len(query_binary_vector)]        
         binary_vector_indices = [idx for idx, item in enumerate(self.index.values()) if len(item['binary_vector']) == len(query_binary_vector)]
         if binary_vectors:
@@ -285,6 +292,7 @@ class VLite:
                 embedding_dtype=self.model.embedding_dtype,
                 context_length=self.model.context_length
             )
+            # print(self.index.items())
             for chunk_id, chunk_data in self.index.items():
                 ctx_file.add_embedding(chunk_data['binary_vector'])
                 ctx_file.add_context(chunk_data['text'])

@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s -
 logger = logging.getLogger(__name__)
 
 class EmbeddingModel:
-    def __init__(self, model_name="mixedbread-ai/mxbai-embed-large-v1", device=None, log_enabled=True):
+    def __init__(self, model_name="sentence-transformers/all-MiniLM-L6-v2", device=None, log_enabled=True):
         if device is None:
             if check_cuda_available():
                 self.device = 'cuda'

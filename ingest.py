@@ -35,7 +35,7 @@ from constants import CHROMA_SETTINGS
 # Load environment variables
 persist_directory = os.environ.get('PERSIST_DIRECTORY', 'db')
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
-# embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'mixedbread-ai/mxbai-embed-large-v1')
+# embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'sentence-transformers/all-MiniLM-L6-v2')
 embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'all-MiniLM-L6-v2')
 chunk_size = 500
 chunk_overlap = 50
@@ -143,11 +143,11 @@ def process_documents(ignored_files: List[str] = []) -> List[Document]:
     if not documents:
         print("No new documents to load")
         exit(0)
-    print(f"Loaded {len(documents)} new documents from {source_directory}")
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    texts = text_splitter.split_documents(documents)
-    print(f"Split into {len(texts)} chunks of text (max. {chunk_size} tokens each)")
-    return texts
+    # print(f"Loaded {len(documents)} new documents from {source_directory}")
+    # text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    # texts = text_splitter.split_documents(documents)
+    # print(f"Split into {len(texts)} chunks of text (max. {chunk_size} tokens each)")
+    return documents
 
 def does_vectorstore_exist(persist_directory: str) -> bool:
     """
@@ -196,100 +196,33 @@ def main():
     print(f"Ingestion complete! You can now run privateGPT.py/use the /retrieve route to query your documents")
 
 if __name__ == "__main__":
-    # from langchain_core.pydantic_v1 import Field
-    # metadata: dict = Field(default_factory=dict)
-    # # metadata={'source': '/home/ubroger/Documents/GitHub/filegpt-filedime/requirements.txt'}
-    # print(metadata)
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
-                                       model_kwargs={"device": "cuda"} if cuda.is_available() else {})
-    vlite=VLite(embedding_function=embeddings)
-    # vlite=VLite(model_name=embeddings_model_name)
- # Create the argument parser
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--collection", help="Saves the embedding in a collection name as specified")
-
-    # # Parse the command-line arguments
-    # args = parser.parse_args()
-    # print("Creating new vectorstore")
-    # print(f"Loading documents from {source_directory}")
-    texts=process_documents()
-    db = vlite.from_documents(documents=texts,embedding=embeddings,collection="filegpt")
-    retriever = db.as_retriever(search_kwargs={"k": 100})
-    # from langchain_core.vectorstores import VectorStoreRetriever
-    # i=VectorStoreRetriever(vectorstore=db)
-    # print(i)
-    # res=db.vlite.retrieve(
-    #     text="is langchain installed",
-    #     top_k=1,
-    #     return_scores=True,
-    #     embedding=None,
-    # )
-    # db.similarity_search_with_score(query="is langchain installed",k=1)
-    # print(retriever)
-    # results=db.vlite.retrieve(
-    #     text="is langchain installed",
-    #     top_k=1,
-    #     return_scores=True,
-    #     embedding=embeddings,
-    # )
-    # import json
-    # parsed_data = json.loads(results)
-    # print(parsed_data[0])
-    # print(type(results))
-    # retriever = vlite.retrieve()
-    # print(retriever)
-    # prompt = ChatPromptTemplate.from_template("""Answer the following question based only on the provided context:
-    #
-    # <context>
-    # {context}
-    # </context>
-    #
-    # Question: {input}""")
-    # llm = Ollama(model="llama3",base_url='http://localhost:11434')
-    # document_chain = create_stuff_documents_chain(llm, prompt)  # chain the LLM to the prompt
-    # retrieval_chain = create_retrieval_chain(retriever, document_chain)
-    # # qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
-    # response = retrieval_chain.invoke({"input": "is langchain installed"})
-    # print(response["answer"])
-
-    # embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"}  if cuda.is_available() else {})
-    # db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
-    # db.persist()
-    # retriever = db.as_retriever(search_kwargs={"k": 1})
-
-    llm = Ollama(model="llama3",base_url='http://localhost:11434')
-    qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
+    def addnew():
+        embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
+                                           model_kwargs={"device": "cuda"} if cuda.is_available() else {})
+        vlite=VLite(embedding_function=embeddings)
+        texts=process_documents()
+        db = vlite.from_documents(documents=texts,embedding=embeddings,collection="filegpt")
+        retriever = db.as_retriever(search_kwargs={"k": 100})
+        llm = Ollama(model="llama3",base_url='http://localhost:11434')
+        qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
+        while True:
+            user_input = input("Enter the message=> ")
+            output = qa(user_input)
+            print("Response=>", output)
     # res = qa("what are the file contents about")
     # res = qa("What does this convey about the author")
     # print(res)
-    while True:
-        user_input = input("Enter the message=> ")
-        output = qa(user_input)
-        print("Response=>", output)
-
-    # lite = VLite(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    # file_paths = read_file_paths_from_txt('source_documents/paths.txt')
-    # results = []
-    # llm = Ollama(model="llama3", base_url='http://localhost:11434')
-    # with Pool(processes=os.cpu_count()) as pool:
-    #     with tqdm(total=len(file_paths), desc='Loading new documents', ncols=80) as pbar:
-    #         for i, docs in enumerate(pool.imap_unordered(process_file, file_paths)):
-    #             results.extend(docs)
-    #             pbar.update()
-    # print(results)
-    # db = vlite.add(results)
-    # retriever = query_constructor.load_query_constructor_runnable(llm=llm, document_contents=vlite.retrieve(
-    #     text="is langchain installed", embedding=embeddings, top_k=1))
-
-    # lite=VLite(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    # print(f"Loading documents from {source_directory}")
-    # file_paths = read_file_paths_from_txt('source_documents/paths.txt')
-    # results = []
-    # with Pool(processes=os.cpu_count()) as pool:
-    #     with tqdm(total=len(file_paths), desc='Loading new documents', ncols=80) as pbar:
-    #         for i, docs in enumerate(pool.imap_unordered(process_file, file_paths)):
-    #             results.extend(docs)
-    #             pbar.update()
-    # # print(texts)
-    # db = vlite.add(results)
-    # print(vlite.retrieve(text="is langchain installed",top_k=1))
+    # addnew()
+    def existing():
+        vlite = VLite(embedding_function=embeddings, collection="filegpt")
+        db = vlite.from_existing_index(embedding=embeddings, collection="filegpt")
+        retriever = db.as_retriever(search_kwargs={"k": 100})
+        llm = Ollama(model="llama3", base_url='http://localhost:11434')
+        qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents=True)
+        while True:
+            user_input = input("Enter the message=> ")
+            output = qa(user_input)
+            print("Response=>", output)
+        # jkl=vlite.similarity_search(query="whats the content",k=100)
+        # print(jkl)
+    existing()

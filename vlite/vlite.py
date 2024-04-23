@@ -26,6 +26,7 @@ class VLite(VectorStore):
         try:
             from vlite import VLite
         except ImportError:
+            # print("failed to open")
             raise ImportError(
                 "Could not import vlite python package. "
                 "Please install it with `pip install vlite`."
@@ -57,6 +58,7 @@ class VLite(VectorStore):
             {"text": text, "metadata": metadata, "id": id, "embedding": embedding}
             for text, metadata, id, embedding in zip(texts, metadatas, ids, embeddings)
         ]
+        # print(data_points)
         results = self.vlite.add(data_points)
         return [result[0] for result in results]
 
@@ -80,7 +82,7 @@ class VLite(VectorStore):
         metadatas = []
         for doc, id in zip(documents, ids):
             if "file_path" in kwargs:
-                # Third-party imports
+                # print("using Third-party imports")
                 try:
                     from vlite.utils import process_file
                 except ImportError:
@@ -89,10 +91,12 @@ class VLite(VectorStore):
                         "Please install it with `pip install vlite`."
                     )
                 processed_data = process_file(kwargs["file_path"])
+                # print(f"Split into {len(processed_data)} chunks of text (max. {512} tokens each)")
                 texts.extend(processed_data)
                 metadatas.extend([doc.metadata] * len(processed_data))
                 ids.extend([f"{id}_{i}" for i in range(len(processed_data))])
             else:
+                # print("using direct way")
                 texts.append(doc.page_content)
                 metadatas.append(doc.metadata)
         return self.add_texts(texts, metadatas, ids=ids)
