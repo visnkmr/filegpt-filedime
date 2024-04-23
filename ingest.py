@@ -7,7 +7,7 @@ from multiprocessing import Pool
 from tqdm import tqdm
 
 from langchain.document_loaders.unstructured import (UnstructuredFileLoader)
-from langchain.document_loaders import (
+from langchain_community.document_loaders import (
     CSVLoader,
     UnstructuredExcelLoader,
     EverNoteLoader,
@@ -26,16 +26,16 @@ from langchain.document_loaders import (
 )
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.docstore.document import Document
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.docstore.document import Document
 from constants import CHROMA_SETTINGS
 
 
 # Load environment variables
 persist_directory = os.environ.get('PERSIST_DIRECTORY', 'db')
 source_directory = os.environ.get('SOURCE_DIRECTORY', 'source_documents')
-# embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'mixedbread-ai/mxbai-embed-large-v1')
+# embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'sentence-transformers/all-MiniLM-L6-v2')
 embeddings_model_name = os.environ.get('EMBEDDINGS_MODEL_NAME', 'all-MiniLM-L6-v2')
 chunk_size = 500
 chunk_overlap = 50
@@ -125,6 +125,29 @@ def load_documents(file_paths: List[str], ignored_files: List[str] = []) -> List
                 pbar.update()
 
     return results
+from vlite.utils import process_file
+def load_documents_vlite(vlite,file_paths: List[str], ignored_files: List[str] = []) -> List[Document]:
+    """
+    Loads all documents from the specified file paths, ignoring specified files
+    """
+    # Filter out ignored files
+    filtered_files = [file_path for file_path in file_paths if file_path not in ignored_files]
+    # print(f"Split into {len(processed_data)} chunks of text (max. {512} tokens each)")
+    # texts=[],metadatas=[],ids=[]
+    with Pool(processes=os.cpu_count()) as pool:
+        results = []
+        with tqdm(total=len(filtered_files), desc='Loading new documents in native way', ncols=80) as pbar:
+            for i, docs in enumerate(pool.imap_unordered(load_single_document, filtered_files)):
+                results.extend(docs)
+                pbar.update()
+    # for doc,dpath in zip(results,filtered_files):
+    #     processed_data = process_file(dpath)
+    #     # print(f"Split into {len(processed_data)} chunks of text (max. {512} tokens each)")
+    #     texts.extend(processed_data)
+    #     metadatas.extend([doc.metadata] * len(processed_data))
+    #     ids.extend([f"asds"])
+    #     vlite.add_texts(texts, metadatas, ids=ids)
+    return results
 
 # Function to read file paths from paths.txt
 def read_file_paths_from_txt(file_path: str) -> List[str]:
@@ -132,6 +155,17 @@ def read_file_paths_from_txt(file_path: str) -> List[str]:
         file_paths = [line.strip() for line in file.readlines()]
     return file_paths
 
+def process_documents_vlite(vlite,ignored_files: List[str] = []) -> List[Document]:
+    """
+    Load documents and split in chunks
+    """
+    print(f"Loading documents from {source_directory}")
+    file_paths = read_file_paths_from_txt('source_documents/paths.txt')
+    documents = load_documents_vlite(vlite,file_paths, ignored_files)
+    if not documents:
+        print("No new documents to load")
+        exit(0)
+    return documents
 def process_documents(ignored_files: List[str] = []) -> List[Document]:
     """
     Load documents and split in chunks
@@ -164,50 +198,146 @@ def does_vectorstore_exist(persist_directory: str) -> bool:
 from torch import cuda
 from langchain.llms import Ollama
 from langchain.chains import RetrievalQA
+from vlite.vlite import VLite
+from vlite import VLite as vlo
+
+embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
+                                       model_kwargs={"device": "cuda"} if cuda.is_available() else {})
+# vlite=VLite(embedding_function=embeddings)
 def main():
-    
-
-    # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"}  if cuda.is_available() else {})
-
-    # if does_vectorstore_exist(persist_directory):
-    #     # Update and store locally vectorstore
-    #     print(f"Appending to existing vectorstore at {persist_directory}")
-    #     db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name=collection, client_settings=CHROMA_SETTINGS)
-    #     collection = db.get()
-    #     print(collection)
-    #     texts = process_documents([metadata['source'] for metadata in collection['metadatas']])
-    #     print(f"Creating embeddings. May take some minutes...")
-    #     db.add_documents(texts)
-    # else:
-        # Create and store locally vectorstore
-    print("Creating new vectorstore")
-    texts = process_documents()
-    print(f"Creating embeddings. May take some minutes...")
-    db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
-    db.persist()
-    # db = None
-
-    print(f"Ingestion complete! You can now run privateGPT.py/use the /retrieve route to query your documents")
-
-import argparse
-if __name__ == "__main__":
- # Create the argument parser
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("--collection", help="Saves the embedding in a collection name as specified")
-
-    # # Parse the command-line arguments
-    # args = parser.parse_args()
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"}  if cuda.is_available() else {})
-    print("Creating new vectorstore")
-    texts = process_documents()
-    print(f"Creating embeddings. May take some minutes...")
-    db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
+    start_time = time.time()
+    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
+                                       model_kwargs={"device": "cuda"} if cuda.is_available() else {})
+    vlite = VLite(embedding_function=embeddings, collection="filegpt")
+    vlov = vlo( collection="filegpt")
+    vlov.clear()
+    end_time = time.time()
+    print(f"vlite loaded in {end_time - start_time}")
+    # file_paths = read_file_paths_from_txt('source_documents/paths.txt')
+    # for file in file_paths:
+    #     vlite.add_documents(process_file(file))
+    texts = process_documents_vlite(vlite)
+    vlite.from_documents(documents=texts, embedding=embeddings, collection="filegpt")
+    # print("Creating new vectorstore")
+    # texts = process_documents()
+    # print(f"Creating embeddings. May take some minutes...")
     # db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
-    db.persist()
-    retriever = db.as_retriever(search_kwargs={"k": 1})
+    # db.persist()
+    print(f"Ingestion complete! You can now run privateGPT.py/use the /retrieve route to query your documents")
+import time
+if __name__ == "__main__":
+    def addnew():
+        start_time=time.time()
+        embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
+                                           model_kwargs={"device": "cuda"} if cuda.is_available() else {})
+        vlite=VLite(embedding_function=embeddings,collection="filegpt")
+        vlov = vlo(collection="filegpt")
+        vlov.clear()
+        end_time = time.time()
+        print(f"vlite loaded in {end_time - start_time}")
+        # file_paths = read_file_paths_from_txt('source_documents/paths.txt')
+        # for file in file_paths:
+        #     vlite.add_documents(process_file(file))
+        texts=process_documents_vlite(vlite)
+        db = vlite.from_documents(documents=texts,embedding=embeddings,collection="filegpt")
+        retriever = db.as_retriever(search_kwargs={"k": 100})
+        llm = Ollama(model="llama3",base_url='http://localhost:11434')
+        qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
+        end_time = time.time()
+        print(f"loaded in {end_time - start_time}")
+        # while True:
+        #     user_input = input("Enter the message=> ")
+        #     start_time=time.time()
+        #     output = qa(user_input)
+        #     end_time = time.time()
+        #     print(f"searched in {end_time - start_time}")
+        #     print("Response=>", output)
+    # res = qa("what are the file contents about")
+    # res = qa("What does this convey about the author")
+    # print(res)
+    # addnew()
+    def existing():
+        start_time = time.time()
+        vlite = VLite(embedding_function=embeddings, collection="filegpt")
+        db = vlite.from_existing_index(embedding=embeddings, collection="filegpt")
+        retriever = db.as_retriever(search_kwargs={"k": 100})
+        llm = Ollama(model="llama3", base_url='http://localhost:11434')
+        qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents=True)
+        end_time = time.time()
+        print(f"loaded in {end_time - start_time}")
+        while True:
+            user_input = input("Enter the message=> ")
+            start_time=time.time()
+            output = qa(user_input)
+            end_time = time.time()
+            print(f"searched in {end_time - start_time}")
+            print("Response=>", output['result'])
+        # jkl=vlite.similarity_search(query="whats the content",k=100)
+        # print(jkl)
+    # existing()
 
-    llm = Ollama(model="llama3",base_url='http://localhost:11434')
-    qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
-    res = qa("is langchain installed") 
-    print(res)
+    def chromaddnew():
+        start_time=time.time()
+        embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
+                                           model_kwargs={"device": "cuda"} if cuda.is_available() else {})
+        print("Creating new vectorstore")
+        texts = process_documents()
+        print(f"Creating embeddings. May take some minutes...")
+        db = Chroma.from_documents(texts, embeddings, persist_directory=persist_directory)
+        db.persist()
+
+        # db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+
+        retriever = db.as_retriever(search_kwargs={"k": 1})
+
+        llm = Ollama(model="llama3", base_url='http://localhost:11434')
+        qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents=True)
+        end_time = time.time()
+        print(f"loaded in {end_time - start_time}")
+        # while True:
+        #     user_input = input("Enter the message=> ")
+        #     start_time=time.time()
+        #     output = qa(user_input)
+        #     end_time = time.time()
+        #     print(f"searched in {end_time - start_time}")
+        #     print("Response=>", output['result'])
+
+
+    def chromaexisting():
+        start_time = time.time()
+        embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,
+                                           model_kwargs={"device": "cuda"} if cuda.is_available() else {})
+        db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+        retriever = db.as_retriever(search_kwargs={"k": 1})
+        llm = Ollama(model="llama3", base_url='http://localhost:11434')
+        qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents=True)
+        end_time=time.time()
+        print(f"loaded in {end_time-start_time}")
+        while True:
+            user_input = input("Enter the message=> ")
+            start_time = time.time()
+            output = qa(user_input)
+            end_time = time.time()
+            print(f"searched in {end_time - start_time}")
+            print("Response=>", output['result'])
+
+    # addnew()
+    # chromaddnew()
+
+    def vlitetest():
+        start_time = time.time()
+        from vlite import VLite
+        vl=VLite(collection="filegpt")
+        file_paths = read_file_paths_from_txt('source_documents/paths.txt')
+        for file in file_paths:
+            # vl.add(process_file(file))
+            loader = TextLoader(file)
+            documents = loader.load()
+            # print(documents)
+            vl.add(documents[0].page_content)
+        end_time = time.time()
+        print(f"loaded in {end_time - start_time}")
+        results = vl.retrieve(text="zzzzzzzzzzzzzzz?")
+        print(results)
+    # vlitetest()
+    addnew()
