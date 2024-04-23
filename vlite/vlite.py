@@ -149,7 +149,7 @@ class VLite(VectorStore):
             (text,metadata)
             for text, metadata, score in results
         ]
-        print(documents_with_scores)
+        # print(documents_with_scores)
         documents_with_scores = [
             Document(page_content=text, metadata=metadata)
             for text, metadata, score in results

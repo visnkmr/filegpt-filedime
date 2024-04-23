@@ -4,13 +4,12 @@ import signal
 from dotenv import load_dotenv
 from fastapi.responses import StreamingResponse
 from langchain.chains import RetrievalQA
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.vectorstores import Chroma
 import os
 from fastapi import FastAPI, UploadFile, File
 from typing import List,Optional
-from langchain.llms import Ollama
+from langchain_community.llms import Ollama
 import shutil
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,7 +51,7 @@ class QueryData(BaseModel):
 class QueryEmbedData(BaseModel):
     files: List[str]
     # collection_name: str
-    
+
 from langchain.prompts import PromptTemplate
 load_dotenv()
 
@@ -90,7 +89,7 @@ async def updates(message: str = "", delay: float = 1.0):
     """
     async def generate():
         while True:
-            
+
             yield f"data: {time()} {message}\n\n"
             await asyncio.sleep(1)
 
@@ -115,7 +114,7 @@ speed = 0.8
 # You can set it manually to 'cpu' or 'cuda' or 'cuda:0' or 'mps'
 device = 'auto' # Will automatically use GPU if available
 
-# English 
+# English
 model_tts = TTS(language='EN_V2', device=device)
 # print(model)
 speaker_ids = model_tts.hps.data.spk2id
@@ -130,7 +129,7 @@ async def tts(query: QueryD):
 
     # British accent
     model_tts.tts_to_sound(query.text, speaker_ids['EN-BR'], speed=speed)
-    
+
     return {"response":"text recieved"}
 
 from fastapi.responses import JSONResponse
@@ -173,21 +172,21 @@ async def embedfromremote(files: List[UploadFile], collection_name: Optional[str
     # Save the files to the specified folder
     for file in files:
         file_path = os.path.join(source_directory, file.filename)
-        saved_files.append(file_path) 
-        
+        saved_files.append(file_path)
+
         with open(file_path, "wb") as f:
             f.write(await file.read())
-        
+
         # if collection_name is None:
         #     # Handle the case when the collection_name is not defined
         #     collection_name = file.filename
 
     save_paths_to_file(saved_files)
-    
+
     # exit_code=os.system(f'python3 ingest.py --collection test')
     main()
-    
-    
+
+
     # Delete the contents of the folder
     # [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
     # if exit_code == 0:
@@ -196,7 +195,7 @@ async def embedfromremote(files: List[UploadFile], collection_name: Optional[str
     #     save_paths_to_file([])
     #     return {"message": "Files embeddeing failed", "saved_files": []}
 
-    
+
 
 def read_file_paths_from_txt(file_path: str) -> List[str]:
     with open(file_path, 'r') as file:
@@ -225,38 +224,39 @@ async def embed(files: QueryEmbedData):
 
     # Write the paths of the uploaded files to paths.txt
     save_paths_to_file(files.files)
-    
+
     # os.system(f'python3 ingest.py --collection test')
     main()
-    
+
     # Delete the contents of the folder
     # [os.remove(os.path.join(source_directory, file.filename)) or os.path.join(source_directory, file.filename) for file in files]
-    
+
     return {"message": "Files embedded successfully", "saved_files": saved_files}
 
 # def queryhandle(query:QueryData):
 #     # return {"hello":"test"}
-    
-    
+
+
 from time import time,sleep,localtime,perf_counter
 from threading import Thread
-from langchain.callbacks import AsyncIteratorCallbackHandler
+# from langchain import AsyncIteratorCallbackHandler
 start_time=perf_counter()
 from torch import cuda
-
+from vlite.vlite import VLite
 def findres(query):
     start_time = perf_counter()
     embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"} if cuda.is_available() else {})
-    
-    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings,collection_name="test")
+
+    vlite = VLite(embedding_function=embeddings, collection="filegpt")
+    db = vlite.from_existing_index(embedding=embeddings, collection="filegpt")
 
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
 
     llm = Ollama(model=model,base_url=base_url)
     qa = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
-    res = qa(query) 
+    res = qa(query)
     print(perf_counter()-start_time)
-    print(res)   
+    print(res)
     answer, docs = res['result'], res['source_documents']
     print(answer)
     return answer,docs
@@ -265,10 +265,10 @@ def findres(query):
 
 @app.post("/retrieve")
 async def retrieve(query: QueryData):
-    
+
     answer,docs=findres(query.query)
     return {"results": answer, "docs":docs}
-    
+
 
     # embed(["/home/ubroger/Documents/GitHub/filegpt-filedime/1.txt",
 # "/home/ubroger/Documents/GitHub/filegpt-filedime/requirements.txt"])
@@ -313,9 +313,10 @@ def stream(cb, q) -> Generator:
         except Empty:
             continue
 import json
-from langchain.chat_models import ChatOllama
+from langchain_community.chat_models import ChatOllama
 from langchain.schema.document import Document
 from pydantic.json import pydantic_encoder
+from langchain_community.vectorstores import Chroma
 
 @app.post("/query-stream")
 def qstream(query:QueryData ):
@@ -329,9 +330,10 @@ def qstream(query:QueryData ):
     llm = Ollama(model=model,callbacks=[QueueCallback(q)])
     if query.where!="ollama":
         embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name,model_kwargs={"device":"cuda"} if cuda.is_available() else {})
-    
-        db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 
+        vlite = VLite(embedding_function=embeddings, collection="filegpt")
+        db = vlite.from_existing_index(embedding=embeddings, collection="filegpt")
+        # db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
         retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
     
         output_function = RetrievalQA.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever, return_source_documents= True)
