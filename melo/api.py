@@ -40,10 +40,11 @@ class TTS(nn.Module):
     isenabled=True
     global play_audio
     def play_audio(audio_queue):
-                while isenabled:
+                while True:
                     audio = audio_queue.get()
                     if audio is None: # Signal to stop
                         break
+                    # print(audio)
                     sd.play(audio, samplerate=44100)
                     sd.wait()
     def __init__(self, 
