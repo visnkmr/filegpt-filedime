@@ -115,7 +115,7 @@ speed = 0.8
 device = 'auto' # Will automatically use GPU if available
 
 # English
-model_tts = TTS(language='EN_V2', device=device)
+model_tts = TTS(language='EN_NEWEST', device=device)
 # print(model)
 speaker_ids = model_tts.hps.data.spk2id
 
