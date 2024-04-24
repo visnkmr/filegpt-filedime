@@ -125,7 +125,7 @@ async def tts(query: QueryD):
     # model.tts_to_file(text, speaker_ids['EN-US'], output_path, speed=speed)
 
     # British accent
-    model_tts.tts_to_sound(query.text, speaker_ids['EN-Newest'], speed=speed)
+    model_tts.tts_to_sound(query.text, speaker_ids['EN-BR'], speed=speed)
 
     return {"response":"text recieved"}
 
@@ -372,7 +372,7 @@ if __name__ == "__main__":
     # findres("what are the contents")
     # findres("how far is the sun from earth")
     # English
-    model_tts = TTS(language='EN_NEWEST', device=device)
+    model_tts = TTS(language='EN_V2', device=device)
     # print(model)
     speaker_ids = model_tts.hps.data.spk2id
     uvicorn.run(app, host="0.0.0.0", port=8694, timeout_keep_alive=1500)
