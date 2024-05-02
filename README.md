@@ -6,24 +6,43 @@ git clone https://github.com/visnkmr/filegpt-filedime && cd filegpt-filedime
 ```
 
 #### Step: Setup a Python Virtual Environment
+Linux
 ```
 python3 -m venv filedimegpt
 ```
+Windows
+```
+py -m venv .venv 
+```
 
 #### Step: Activate the Python Virtual Environment
+Linux
 ```
 source ./filedimegpt/bin/activate
 ```
+Windows
+```
+.\.venv\Scripts\activate   
+```
 
 #### Step: Install the Requirements
+Linux
 ```
 pip install -r requirements.txt
 ```
+Windows
+```
+py -m pip install -r .\requirements.txt 
+```
 
 #### Step: Run this command
+Linux
 ```
 python app.py  
-
+```
+Windows
+```
+py .\app.py
 ```
 
 If you only need filedimespeech then no need to install ollama which is described below,
