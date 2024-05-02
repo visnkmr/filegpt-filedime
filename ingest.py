@@ -125,7 +125,7 @@ def load_documents(file_paths: List[str], ignored_files: List[str] = []) -> List
                 pbar.update()
 
     return results
-from vlite.utils import process_file
+# from vlite.utils import process_file
 def load_documents_vlite(vlite,file_paths: List[str], ignored_files: List[str] = []) -> List[Document]:
     """
     Loads all documents from the specified file paths, ignoring specified files
